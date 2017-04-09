@@ -42,6 +42,6 @@
       =((rsh 3 3 next) (crip (print:mal (eval:mal cont))))
       =((cut 3 [0 2] next) '; ')  ::  this test harness is fucking stupid
     ==
-  ["PASS" $(test t.adv)]
+  ["PASS: {<code>}" $(test t.adv)]
 ["FAIL: {<code>}" $(test t.adv)]
 

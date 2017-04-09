@@ -8,6 +8,13 @@
   |*  a/*
   ^-  (list _a)
   [a ~]
+::
+++  hint
+  |*  {msg/cord han/mold}
+  |=  fud/*  ^-  han
+  ~|  hint+msg
+  =+  gol=(han fud)
+  ?>(=(gol fud) gol)
 --
 ::
 |%
@@ -44,7 +51,7 @@ $%
     (cook trip (mask "[]\{}'`~^@"))
   ::
   ++  string
-    %+  cook  (hard mal-type)
+    %+  cook  (hint %string mal-type)
     %+  stag  %str
     %+  ifix  [doq doq]
     %-  star
@@ -55,7 +62,7 @@ $%
   ::
   ++  symbol
     %+  stag  %symb
-    %+  cook  (hard tape)  ::  type hint for pretty-printing
+    %+  cook  (hint %symbol tape)  ::  type hint for pretty-printing
     %-  plus
     ;~  pose
       (mask "!#$%&|*+-/:<=>?@^_~")
@@ -75,7 +82,7 @@ $%
     ==
   ::
   ++  token
-    %+  cook  (hard mal-type)
+    %+  cook  (hint %token mal-type)
     ::  %+  stag  %list
     ::  %-  plus
     ;~  pose
@@ -97,15 +104,21 @@ $%
     |=  s/tape
     ^-  (unit mal-type)
     %+  rust  s
+    %+  cook  |=  out/(list mal-type)
+      ?:  =((lent out) 1)
+        (snag 0 out)
+      [%list out]
     read-form
   ::
   ++  read-list
-    %+  cook  (hard (list mal-type))
+    %+  cook  (hint %read-list mal-type)
     %+  ifix  [pel per]
-    (more ace (knee *mal-type |.(read-form)))
+    %+  stag  %list
+    %+  cook  zing
+    (more ace (knee *(list mal-type) |.(read-form)))
   ::
   ++  read-atom
-    %+  cook  (hard mal-type)
+    %+  cook  (hint %read-atom mal-type)
     ;~  pose
       atom
       symbol
@@ -113,18 +126,17 @@ $%
     ==
   ::
   ++  read-form
-    %+  cook  (hard mal-type)
-    ::%+  stag  %list
-    %+  cook  |=  out/(list mal-type)
-      ?:  =((lent out) 1)
-        (snag 0 out)
-      [%list out]
+    %+  cook  (hint %read-form (list mal-type))
+    ::%+  cook  |=  out/(list mal-type)
+    ::  ?:  =((lent out) 1)
+    ::    (snag 0 out)
+    ::  [%list out]
     %+  cook  zing
     %-  plus
     ;~  pose
       spaces
       ::
-      read-list
+      (cook zap read-list)
       ::
       (cook zap read-atom)
     ==
