@@ -6,16 +6,15 @@
 |=  *
 ^-  (sole-result (cask tang))
 
-=/  machine  new:mal:mal
-=/  cont/vase  !>(machine)
+=/  machine/vase  !>(new:mal:mal)
 |-
 %+  sole-lo  [%.y %show "user> "]
 %+  sole-go  (most (easy ~) qit)
 |=  s/tape
-=/  res  (safe-rep:machine (slop !>(s=s) cont))
+=/  res  (safe-rep:mal:mal (slop !>(s=s) machine))
 ?~  res
   ^$
-=.  cont  `vase`(slot 3 (need res))
+=.  machine  `vase`(slot 3 (need res))
 %+  sole-yo
   ^-  tank
   :*  %rose
@@ -25,7 +24,7 @@
       leaf+"\0a"
       =+  a=(sell (slot 2 (need res)))
       ?>  ?=({$leaf *} a)
-      leaf+(slag 1 (scag (dec (lent p.a)) p.a))
+      leaf+(shave p.a)
     ==
   ==
-^$(machine machine)  ::  recurse
+^$  ::  recurse

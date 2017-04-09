@@ -35,6 +35,7 @@ $?
   ==
 
 ^-  (list tape)
+=/  machine/(unit vase)  (some !>(new:mal:mal))
 |-
 ?~  test
   ~
@@ -48,31 +49,34 @@ $?
   ::  comment, ignore it
   $(test t.test)
 =/  test/(list cord)  test
-=/  comp/{code/tape rest/(list cord)}
-  =/  acc/tape  ""
-  |-
-  ^-  {tape (list cord)}
+=+  [code=*(list cord) trout=*(unit vase) rest=*(list cord)]
+=+  |-
   ?~  test
-    [acc ~]
+    [code=code trout=trout rest=~]
   ?:  =((cut 3 [0 1] i.test) ';')
-    [acc [i.test t.test]]
-  $(acc `tape`:(weld acc (trip i.test)), test `(list cord)`t.test)
-~|  running+code.comp
-=/  machine  new:mal:mal
-=/  cont  (safe-rep:machine code.comp)
-~&  [%running code.comp]
-=/  adv  rest.comp
-?~  adv
+    [code=code trout=trout rest=[i.test t.test]]
+  ~|  running+(trip i.test)
+  =/  salmon  (safe-rep:mal:mal (slop !>(s=(trip i.test)) (need machine)))
+  $(code [i.test code], trout ((lift |=(v/vase (slot 2 v))) salmon), test `(list cord)`t.test, machine ((lift |=(v/vase (slot 3 v))) salmon))
+=/  rest/(list cord)  rest
+?~  rest
   ~|  'nothing to test against'
   !!
-=/  next  i.adv
+=/  next  i.rest
 ?.  =((cut 3 [0 1] next) ';')
   ~|  'next line wasnt result'^next
   !!
 ?:  ?|
       =((cut 3 [0 2] next) '; ')
-      &(!=(~ cont) =((rsh 3 3 next) (crip -:(need cont))))
+    ?&
+      !=(~ trout)
+      .=
+        `cord`(rsh 3 3 next)
+        =/  p/tank  (sell `vase`(need trout))
+        ?>  ?=({$leaf *} p)
+        `cord`(crip (shave:mal p.p))
     ==
-  ["PASS: {code.comp}" $(test t.adv)]
-["FAIL: {code.comp}" $(test t.adv)]
+    ==
+  ["PASS: {<code>}" $(test t.rest)]
+["FAIL: {<code>}" $(test t.rest)]
 

@@ -1,7 +1,7 @@
 |%
 ++  mal-type
 $@
-  $~
+  $nil
 $%
   {$list p/(list mal-type)}
   {$atom p/@s}

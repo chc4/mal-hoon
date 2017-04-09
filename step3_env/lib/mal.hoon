@@ -24,6 +24,10 @@
   ?>  (~(nest ut p.bun) & p.a)
   ;;(typ q.a)
 ::
+++  shave
+  |=  p/tape
+  (slag 1 (scag (dec (lent p)) p))
+::
 ++  parser
   |%
   ++  spaces
@@ -100,18 +104,26 @@
     |=  s/tape
     ^-  (unit mal-type)
     %+  rust  s
-    %+  cook  |=  out/(list mal-type)
+    %+  cook
+      |=  m/mal-type
+      ?:  ?=({$list *} m)
+        ?:  =((lent p.m) 1)
+          (snag 0 p.m)
+        m
+      m
+    read-form
+  ::
+  ++  flatten
+    |=  out/(list mal-type)
       ?:  =((lent out) 1)
         (snag 0 out)
       [%list out]
-    read-form
   ::
   ++  read-list
     %+  cook  (hint %read-list mal-type)
     %+  ifix  [pel per]
-    %+  stag  %list
     %+  cook  zing
-    (more ace (knee *(list mal-type) |.(read-form)))
+    (more ace (knee *mal-type |.(read-form)))
   ::
   ++  read-atom
     %+  cook  (hint %read-atom mal-type)
@@ -122,11 +134,9 @@
     ==
   ::
   ++  read-form
-    %+  cook  (hint %read-form (list mal-type))
-    ::%+  cook  |=  out/(list mal-type)
-    ::  ?:  =((lent out) 1)
-    ::    (snag 0 out)
-    ::  [%list out]
+    %+  cook  (hint %read-form mal-type)
+    ::%+  cook  flatten
+    %+  stag  %list
     %+  cook  zing
     %-  plus
     ;~  pose
@@ -151,18 +161,14 @@
   [p.first t.arg]
 ::
 ++  env
-  |_  {outer/table data/table}
+  |_  {outer/(unit _env) data/table}
   ::
-  ++  samp
-    ^-  {table table}
-    +<
+  ++  abet  +<       ::  sample
   ::
-  ++  abet  +<
-  ::
-  ++  this  ..abet
+  ++  this  ..abet   ::  core
   ::
   ++  new
-    |=  outer/table
+    |=  outer/(unit _env)
     ^-  _env
     ~(. env [outer *table])
   ::
@@ -173,29 +179,30 @@
   ::
   ++  find
     |=  key/tape
-    ^-  table
+    ^-  (unit table)
     =/  res  (~(has by data) key)
     ?:  res
-      data
-    ?:  =(outer *table)  ::  nil
-      ~|  %find-no-key
-      !!
-    $(data outer)
+      (some data)
+    ?~  =(outer ~)
+      ~
+    (find:(need outer) key)
   ::
   ++  get
     |=  key/tape
-    ^-  mal-type
+    ^-  (unit mal-type)
     =/  e  (find key)
-    =/  val  (~(get by data) key)
+    ?~  e
+      ~
+    =/  val  (~(get by (need e)) key)
     ?~  val
       ~|  %got-no-key
-      !!
-    (need val)
+      ~
+    (some (need val))
   --
   ::
 ++  make-env
     ^-  _env
-    =/  close/_env  (new:env *table)
+    =/  close/_env  (new:env ~)
     =.  close  %+  set:close  "+"
       :-  %fun
       |=  arg/(list mal-type)
@@ -244,12 +251,60 @@
     :_  this
     (need (read-str:parser s))
   ::
+  ++  special-apply
+    |=  s/mal-type
+    ^-  {(unit mal-type) _this}
+    ?.  ?=({$list *} s)
+      [~ this]
+    ?~  p.s
+      [~ this]
+    ?.  ?=({$symb *} i.p.s)
+      [~ this]
+    =/  prim  p.i.p.s
+    ?:  =(prim "def!")
+      =^  res/mal-type  this  (eval `mal-type`(snag 2 `(list mal-type)`p.s))
+      ?:  =(%nil res)
+        ~|  %bad-bind
+        [(some %nil) this]
+      =/  key  =+  a=(snag 1 `(list mal-type)`p.s)
+               ?>  ?=({$symb *} a)
+               p.a
+      ::=.  ctx  (set:ctx `tape`key `mal-type`res)
+      [(some res) this(ctx `_env`(set:ctx key res))]
+    ::
+    ?:  =(prim "let*")
+      =/  args  `(list mal-type)`t.p.s
+      =/  bindings  (snag 0 args)
+      ?>  ?=({$list *} bindings)
+      =/  bindings/(list mal-type)  p.bindings
+      =/  old-env  ctx
+      =.  ctx  (new:env (some ctx))
+      =.  ctx
+      |-
+        ?:  =((lent bindings) 0)
+          ctx
+        =/  name/mal-type  (snag 0 bindings)
+        ?>  ?=({$symb *} name)
+        =^  bind  this  (eval (snag 1 bindings))
+        ?:  =(%nil bind)
+          ~&  %bad-let
+          $(bindings (slag 2 bindings))
+        ::~&  [%let-bind p.name bind]
+        $(ctx (set:ctx p.name bind), bindings (slag 2 bindings))
+      =/  close  (snag 1 args)
+      =^  res  this  (eval close)
+      [(some res) this(ctx old-env)]
+    ::
+    [~ this]
+  ::
   ++  eval-ast
     |=  ast/mal-type
     ^-  {mal-type _this}  ::  no i/o monad, only forwards type inference
     ?-  ast
       {$symb *}  =/  key  (get:ctx p.ast)
-                 [key this]
+                 ?~  key
+                   [%nil this]
+                 [(need key) this]
       ::
       {$list *}  =/  fire/(list mal-type)  p.ast
                  =/  acc/(list mal-type)  ~
@@ -270,15 +325,12 @@
     ::
     ?:  =((lent p.s) 0)
       [s this]
-    ?>  ?=({{$symb *} *} p.s)
-    =/  prim  p.i.p.s
-    ?:  =(prim "def!")
-      =^  res/mal-type  this  (eval `mal-type`(snag 2 `(list mal-type)`p.s))
-      =/  key  =+  a=(snag 1 `(list mal-type)`p.s)
-               ?>  ?=({$symb *} a)
-               p.a
-      ::=.  ctx  (set:ctx `tape`key `mal-type`res)
-      [res this(ctx `_env`(set:ctx key res))]
+    ::
+    =/  spec  (special-apply s)
+    ?^  -.spec
+      =^  val  this  spec
+      [(need val) this]
+    ::
     :: get new list
     =^  el/mal-type  this  (eval-ast `mal-type`s)
     ?>  ?=({$list *} el)
@@ -286,7 +338,8 @@
       ~|  %empty-call
       !!
     =/  func  `mal-type`i.p.el
-    ?>  ?=({$fun *} func)
+    ?.  ?=({$fun *} func)
+      [%nil this]
     =/  fun/mal-lambda  p.func
     =/  param/(list mal-type)  t.p.el
     [(fun param) this]
@@ -296,7 +349,7 @@
     ^-  {tape _this}
     :_  this
     ?-  s
-      $~         ""
+      $nil       "nil"
       ::
       {$list *}  :(weld "(" (roll (turn p.s |=(m/mal-type -:(print m))) |=({a/tape b/tape} ?~(b a :(weld b " " a)))) ")")
       ::
