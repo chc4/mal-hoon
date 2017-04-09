@@ -338,8 +338,7 @@
       ~|  %empty-call
       !!
     =/  func  `mal-type`i.p.el
-    ?.  ?=({$fun *} func)
-      [%nil this]
+    ?>  ?=({$fun *} func)
     =/  fun/mal-lambda  p.func
     =/  param/(list mal-type)  t.p.el
     [(fun param) this]
