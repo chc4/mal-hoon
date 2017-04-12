@@ -1,4 +1,6 @@
-/+  mal
+/+  mal, help
+=+  [help .]
+!:
 
 :-  %say
 |=  $:
@@ -9,5 +11,5 @@
 :-  %noun
 
 =/  machine  new:mal:mal
-=^  res  machine  (rep:machine arg)
-res
+%+  riff  (rep:machine arg)  |=  {p/tape q/_machine}
+p
