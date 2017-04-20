@@ -11,7 +11,7 @@
   ++  spaces
     %+  cook  rome
     %+  cold  ~
-    %-  plus
+    %-  star
     ;~  pose
       ace
       gap
@@ -48,7 +48,7 @@
           %+  cook  rome
           doq
           ::
-          (rex "expected escape sequence" bix:ab)
+          (rex "expected escape sequence" (cold '\0a' (jest 'n')))
           ::
           (easy [%err "expected escaped char"])
         ==
@@ -98,15 +98,10 @@
     %+  cook  (hint %token parse-res)
     ::  %+  stag  %list
     ::  %-  plus
-    ;~  rose
+    ;~  pfix
       ::  ignore leading whitespace
       spaces
-      ::  special token
-      %+  cook  rome
-      %+  stag  %symbol
-      (cook trip (jest '~@'))
-      ::  special characters
-      special
+    ;~  rose
       ::  string parsing
       string
       ::  any amount of characters after ;
@@ -114,37 +109,26 @@
       ::  normal symbols
       symbol
     ==
+    ==
   ++  read-str
     |=  s/tape
     ^-  parse-res
     %-  need
     %+  trust  s
     %+  cook  (hint %read-str parse-res)
-    %+  cook
-      %-  rift
-      |=  m/mal-type
-      ^-  mal-type
-      ?:  ?=({$list *} m)
-        ?:  =((lent p.m) 1)
-          (snag 0 p.m)
-        m
-      m
-    %+  cook  (hint %read-str-form parse-res)
     read-form
   ::
-  ++  flatten
-    |=  out/(list mal-type)
-      ?:  =((lent out) 1)
-        (snag 0 out)
-      [%list out]
-  ::
   ++  read-list
-    %+  cook  (hint %read-list parse-res)
-    ::  (list parse-res)
+    %+  cook  (rift |=(p/(list mal-type) [%list p]))
     %+  rfix  [pel (rex "expected )" per)]
-    %+  cook  (rift zing)
     %+  cook  (hint %read-list-zing (result (list mal-type) tape))
     (rore ace (knee *parse-res |.(read-form)))
+  ::
+  ++  read-vector
+    %+  cook  (rift |=(p/(list mal-type) [%vect p]))
+    %+  rfix  [sel (rex "expected ]" ser)]
+    %+  cook  (hint %read-vector-zing (result (list mal-type) tape))
+    (rost ace (knee *parse-res |.(read-form)))
   ::
   ++  read-atom
     %+  cook  (hint %read-atom parse-res)
@@ -154,18 +138,45 @@
       token
     ==
   ::
+  ++  make-macro
+    |=  {sym/cord mac/tape err/tape}
+    %+  cook  (rift |=(m/mal-type [%list [%symb mac] m ~]))
+    ;~  pfix
+      (jest sym)
+      ;~  rose
+        (knee *parse-res |.(read-form))
+        (easy [%err err])
+      ==
+    ==
+  ::
+  ++  read-macro
+    ;~  rose
+      (make-macro '\'' "quote" "expected quoted form")
+      (make-macro '`' "quasiquote" "expected quasiquoted form")
+      (make-macro '~@' "splice-unquote" "expected form to splice-unquote")
+      (make-macro '~' "unquote" "expected form to unquote")
+      (make-macro '@' "deref" "expected form to deref")
+      ::  bleh with-meta needs two forms
+    ==
+  ::
   ++  read-form
     %+  cook  (hint %read-form parse-res)
-    %+  cook  (rift flatten)
-    %+  cook  (rift zing)
-    %+  cook  (hint %read-form-zing (result (list (list mal-type)) tape))
-    %-  rlus
-    ;~  rose
+    ::%+  cook  (rift flatten)
+    ::%+  cook  (rift zing)
+    ::%+  cook  (hint %read-form-zing (result (list mal-type) tape))
+    ;~  prix
       spaces
       ::
-      (cook (rift |=(p/mal-type (zang p))) read-list)
+    ;~  rose
+      read-macro
       ::
-      (cook (rift |=(p/mal-type (zang p))) read-atom)
+      read-list
+      ::
+      read-vector
+      ::
+      read-atom
+      ::
+    ==
     ==
   --
 ::
@@ -197,9 +208,16 @@
   ++  this  ..abet   ::  core
   ::
   ++  new
-    |=  outer/(unit _env)
+    |=  {outer/(unit _env) binds/(list mal-type) exprs/(list mal-type)}
     ^-  _env
-    ~(. env [outer *table])
+    =/  blank  ~(. env [outer *table])
+    |-
+    ?:  &(=(~ binds) =(~ exprs))
+      blank
+    =^  name  binds  (take binds)
+    ?>  ?=({$symb *} name)
+    =^  val   exprs  (take exprs)
+    $(blank (set:blank p.name val), binds binds, exprs exprs)
   ::
   ++  set
     |=  {key/tape value/mal-type}
@@ -231,7 +249,7 @@
   ::
 ++  make-env
     ^-  _env
-    =/  close/_env  (new:env ~)
+    =/  close/_env  (new:env ~ ~ ~)
     =.  close  %+  set:close  "+"
       :-  %fun
       |=  arg/(list mal-type)
@@ -257,6 +275,7 @@
     ::
     =.  close  %+  set:close  "/"
       :-  %fun
+      ^-  mal-lambda
       |=  arg/(list mal-type)
       ^-  mal-type
       =^  a  arg  (get-atom arg)
@@ -287,42 +306,45 @@
       [~ this]
     ?~  p.s
       [~ this]
-    ?.  ?=({$symb *} i.p.s)
+    =/  args  `(list mal-type)`p.s
+    =^  sym  args  (take `(list mal-type)`args)
+    ?.  ?=({$symb *} sym)
       [~ this]
-    =/  prim  p.i.p.s
+    =/  prim  p.sym
     ::
     ?:  =(prim "def!")
-      =^  res/mal-type  this  (reed (eval `mal-type`(snag 2 `(list mal-type)`p.s)))
+      =^  bind  args  (take args)
+      =^  code  args  (take args)
+      =^  res/mal-type  this  (reed (eval `mal-type`code))
       ?:  =(%nil res)
         ~|  %bad-bind
         [(some %nil) this]
-      =/  key  =+  a=(snag 1 `(list mal-type)`p.s)
-               ?>  ?=({$symb *} a)
-               p.a
+      =/  key  ?>  ?=({$symb *} bind)
+               p.bind
       ::=.  ctx  (set:ctx `tape`key `mal-type`res)
       [(some res) this(ctx `_env`(set:ctx key res))]
     ::
     ?:  =(prim "let*")
-      =/  args  `(list mal-type)`t.p.s
-      =/  bindings  (snag 0 args)
+      =^  bindings  args  (take args)
       ?>  ?=({$list *} bindings)
       =/  bindings/(list mal-type)  p.bindings
       =/  old-env  ctx
-      =.  ctx  (new:env (some ctx))
+      =.  ctx  (new:env (some ctx) ~ ~)
       =.  ctx
       |-
         ?:  =((lent bindings) 0)
           ctx
-        =/  name/mal-type  (snag 0 bindings)
+        =^  name/mal-type  bindings  (take bindings)
         ?>  ?=({$symb *} name)
-        =^  bind  this  (reed (eval (snag 1 bindings)))
+        =^  entr  bindings  (take bindings)
+        =^  bind  this  (reed (eval entr))
         ?:  =(%nil bind)
           ~&  %bad-let
-          $(bindings (slag 2 bindings))
+          $(bindings bindings)
         ::~&  [%let-bind p.name bind]
-        $(ctx (set:ctx p.name bind), bindings (slag 2 bindings))
-      =/  close  (snag 1 args)
-      =^  res  this  (reed (eval close))
+        $(ctx (set:ctx p.name bind), bindings bindings)
+      =^  close  args  (take args)
+      =^  res    this  (reed (eval close))
       [(some res) this(ctx old-env)]
     ::
     ?:  =(prim "do")
@@ -333,6 +355,21 @@
         (reed (eval:q p))
       =^  res  this  (spin args f `_mal`this)
       [(some [%list res]) this]
+    ::
+    ?:  =(prim "fn*")
+      =^  param  args  (take args)
+      ~|  param
+      ?>  ?=({$list *} param)
+      =^  close  args  (take args)
+      :_  this
+      %-  some
+      :-  %fun
+        |=  arg/(list mal-type)
+        ^-  mal-type
+        =/  new-env  (new:env (some ctx) p.param arg)
+        ::(reed (eval:~(. mal new-env) close))
+        [%atom -0]
+
     ::
     [~ this]
   ::
@@ -399,6 +436,8 @@
       $false     "false"
       ::
       {$list *}  :(weld "(" (roll (turn p.s |=(m/mal-type -:(print m))) |=({a/tape b/tape} ?~(b a :(weld b " " a)))) ")")
+      ::
+      {$vect *}  :(weld "[" (roll (turn p.s |=(m/mal-type -:(print m))) |=({a/tape b/tape} ?~(b a :(weld b " " a)))) "]")
       ::
       {$atom *}  =/  o/{? @}  (old:si p.s)
                  %+  weld  ?:(-.o "" "-")

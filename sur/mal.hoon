@@ -11,6 +11,7 @@ $?
   $false
 $%
   {$list p/(list mal-type)}
+  {$vect p/(list mal-type)}
   {$atom p/@s}
   {$symb p/tape}
   {$str p/tape}
