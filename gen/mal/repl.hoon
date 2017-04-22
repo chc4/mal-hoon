@@ -6,15 +6,21 @@
 |=  *
 ^-  (sole-result (cask tang))
 
-=/  machine/vase  !>(new:mal:mal)
+=/  machine  new:mal:mal
 |-
-%+  sole-lo  [%.y %show "user> "]
+%+  sole-lo  [%.y %mal-repl "user> "]
 %+  sole-go  (most (easy ~) qit)
 |=  s/tape
-=/  res  (safe-rep:mal:mal (slop !>(s=s) machine))
-?~  res
+::  vase of (result {tape _mal} ?(eval-err $safe-fail)) or something
+=/  res  (safe-rep:machine s)
+?:  ?=({$err *} res)
+  %+  sole-yo
+  ^-  tank
+  ?:  ?=({$safe-fail *} p.res)
+    [%rose ["" "" ""] +.p.res]
+  >[%repl-none res]<
   ^$
-=.  machine  `vase`(slot 3 (need res))
+=^  val  machine  (reed res)
 %+  sole-yo
   ^-  tank
   :*  %rose
@@ -22,9 +28,9 @@
     :~
       leaf+s
       leaf+"\0a"
-      =+  a=(sell (slot 2 (need res)))
+      =+  a=(sell !>(val))
       ?>  ?=({$leaf *} a)
       leaf+(shave p.a)
     ==
   ==
-^$  ::  recurse
+^$(machine machine)  ::  recurse

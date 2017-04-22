@@ -27,6 +27,9 @@
       (most (jest '\0a') qit)
     ==
   ::
+  ++  ignored
+    ;~(pose spaces comment)
+  ::
   ++  special
     %+  cook  (hint %special parse-res)
     %+  cook  rome
@@ -96,19 +99,11 @@
   ::
   ++  token
     %+  cook  (hint %token parse-res)
-    ::  %+  stag  %list
-    ::  %-  plus
-    ;~  pfix
-      ::  ignore leading whitespace
-      spaces
     ;~  rose
       ::  string parsing
       string
-      ::  any amount of characters after ;
-      comment
       ::  normal symbols
       symbol
-    ==
     ==
   ++  read-str
     |=  s/tape
@@ -120,15 +115,15 @@
   ::
   ++  read-list
     %+  cook  (rift |=(p/(list mal-type) [%list p]))
-    %+  rfix  [pel (rex "expected )" per)]
+    %+  rfix  [pel (rex "expected )" ;~(pfix ignored per))]
     %+  cook  (hint %read-list-zing (result (list mal-type) tape))
-    (rore ace (knee *parse-res |.(read-form)))
+    (rore ignored (knee *parse-res |.(read-form)))
   ::
   ++  read-vector
     %+  cook  (rift |=(p/(list mal-type) [%vect p]))
-    %+  rfix  [sel (rex "expected ]" ser)]
+    %+  rfix  [sel (rex "expected ]" ;~(pfix ignored ser))]
     %+  cook  (hint %read-vector-zing (result (list mal-type) tape))
-    (rost ace (knee *parse-res |.(read-form)))
+    (rost ignored (knee *parse-res |.(read-form)))
   ::
   ++  read-atom
     %+  cook  (hint %read-atom parse-res)
@@ -164,8 +159,8 @@
     ::%+  cook  (rift flatten)
     ::%+  cook  (rift zing)
     ::%+  cook  (hint %read-form-zing (result (list mal-type) tape))
-    ;~  prix
-      spaces
+    ;~  pfix
+      ignored
       ::
     ;~  rose
       read-macro
@@ -201,7 +196,8 @@
   [i.arg t.arg]
 ::
 ++  env
-  |_  {outer/(unit _env) data/table}
+  ::  we need a level so that functions can refer to env without mutable ref
+  |_  {level/@ outer/(unit _env) data/table}
   ::
   ++  abet  +<       ::  sample
   ::
@@ -210,7 +206,8 @@
   ++  new
     |=  {outer/(unit _env) binds/(list mal-type) exprs/(list mal-type)}
     ^-  _env
-    =/  blank  ~(. env [outer *table])
+    =/  lvl  ?~  outer  0  +(level.u.outer)
+    =/  blank  ~(. env [lvl outer *table])
     |-
     ?:  &(=(~ binds) =(~ exprs))
       blank
@@ -245,44 +242,236 @@
       ~|  %got-no-key
       ~
     (some (need val))
-  --
   ::
+  ++  dig
+    |=  lvl/@
+    ~+
+    ^-  _env
+    ?:  (gth lvl level)
+      ~|  [%dig-up lvl level]
+      !!
+    ?:  =(lvl level)
+      this
+    ?~  outer
+      ~|  [%bedrock lvl]
+      !!
+    (dig:(need outer) lvl)
+  --
+::
+++  ns
+  %-  my
+  :~
+    :-  "+"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  a  args  (get-atom args)
+      =^  b  args  (get-atom args)
+      :_  this
+      [%atom (sum:si a b)]
+    ::
+    :-  "-"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  a  args  (get-atom args)
+      =^  b  args  (get-atom args)
+      :_  this
+      [%atom (dif:si a b)]
+    ::
+    :-  "*"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  a  args  (get-atom args)
+      =^  b  args  (get-atom args)
+      :_  this
+      [%atom (pro:si a b)]
+    ::
+    :-  "/"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  a  args  (get-atom args)
+      =^  b  args  (get-atom args)
+      :_  this
+      [%atom (fra:si a b)]
+    ::
+    :-  "prn"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      =^  f  args  (take args)
+      =/  str  -:(pr-str:mal f %.y)
+      ::  fucking side-effect-free code, do you speak it? let's cheat.
+      ~>  %slog.[1 leaf+str]
+      :_  this
+      %nil
+    ::
+    :-  "list"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      :_  this
+      [%list args]
+    ::
+    :-  "list?"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  f  args  (take args)
+      :_  this
+      ?:  ?=({$list *} f)  %true  %false
+    ::
+    :-  "empty?"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  f  args  (take args)
+      :_  this
+      ?:  ?=({$list *} f)
+        ?:  =(~ p.f)  %true  %false
+      %false
+    ::
+    :-  "count"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  f  args  (take args)
+      :_  this
+      ?:  ?=({$list *} f)
+        [%atom (sun:si (lent p.f))]
+      [%atom --0]
+    ::
+    :-  "="
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  one  args  (take args)
+      =^  two  args  (take args)
+      :_  this
+      ?:  =(one two)
+        %true
+      %false
+    ::
+    :-  "<"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  one  args  (get-atom args)
+      =^  two  args  (get-atom args)
+      :_  this
+      ?:  (lth one two)
+        %true
+      %false
+    ::
+    :-  "<="
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  one  args  (get-atom args)
+      =^  two  args  (get-atom args)
+      :_  this
+      ?:  (lte one two)
+        %true
+      %false
+    ::
+    :-  ">"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  one  args  (get-atom args)
+      =^  two  args  (get-atom args)
+      :_  this
+      ?:  (gth one two)
+        %true
+      %false
+    ::
+    :-  ">="
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =^  one  args  (get-atom args)
+      =^  two  args  (get-atom args)
+      :_  this
+      ?:  (gte one two)
+        %true
+      %false
+    ::
+    :-  "bound"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      =/  lvl  ?~  args  0  (abs:si -:(get-atom args))
+      ^-  {mal-type _this}
+      :_  this
+      [%list (turn (~(tap in ~(key by data:(dig:ctx.this lvl)))) |=(s/tape [%str s]))]
+    ::
+     :-  "level"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      :_  this
+      [%atom (sun:si level.ctx.this)]
+  ==
+::
 ++  make-env
     ^-  _env
     =/  close/_env  (new:env ~ ~ ~)
-    =.  close  %+  set:close  "+"
-      :-  %fun
-      |=  arg/(list mal-type)
-      ^-  mal-type
-      =^  a  arg  (get-atom arg)
-      =^  b  arg  (get-atom arg)
-      [%atom (sum:si a b)]
-    =.  close  %+  set:close  "-"
-      :-  %fun
-      |=  arg/(list mal-type)
-      ^-  mal-type
-      =^  a  arg  (get-atom arg)
-      =^  b  arg  (get-atom arg)
-      [%atom (dif:si a b)]
-    ::
-    =.  close  %+  set:close  "*"
-      :-  %fun
-      |=  arg/(list mal-type)
-      ^-  mal-type
-      =^  a  arg  (get-atom arg)
-      =^  b  arg  (get-atom arg)
-      [%atom (pro:si a b)]
-    ::
-    =.  close  %+  set:close  "/"
-      :-  %fun
-      ^-  mal-lambda
-      |=  arg/(list mal-type)
-      ^-  mal-type
-      =^  a  arg  (get-atom arg)
-      =^  b  arg  (get-atom arg)
-      [%atom (fra:si a b)]
+    ::  this is a bit funky looking...might be able to just reel/roll?
+    =^  a  close  %^  spin  (~(tap by ns))
+        |=  {{sym/tape val/mal-type} close/_env}
+        [~ (set:close sym val)]
+      close
     close
-    ::
+::
+++  parse-res
+    (result mal-type tape)
+::
+++  mal-type
+$?
+  $nil
+  $true
+  $false
+$%
+  {$list p/(list mal-type)}
+  {$vect p/(list mal-type)}
+  {$atom p/@s}
+  {$symb p/tape}
+  {$str p/tape}
+  {$fun p/mal-lambda}
+==
+==
+::
+++  eval-err
+    $@
+      $?
+      $empty-call
+      $special-fail
+      ==
+    $%
+      {$eval-bad-func mal-type}
+    ==
+++  table
+  (map tape mal-type)
+::
+++  mal-lambda
+  ::$-({(list mal-type) _mal} {mal-type _mal})
+  _^?(|=({(list mal-type) _mal} *{mal-type _mal}))
 ::
 ++  mal              ::  this is long overdue;
   |_  ctx/_env       ::  hoon doesn't have an io monad, but state machines
@@ -322,6 +511,7 @@
       =/  key  ?>  ?=({$symb *} bind)
                p.bind
       ::=.  ctx  (set:ctx `tape`key `mal-type`res)
+      ~&  [%def-in level.ctx key]
       [(some res) this(ctx `_env`(set:ctx key res))]
     ::
     ?:  =(prim "let*")
@@ -353,22 +543,42 @@
         |=  {p/mal-type q/_mal}
         ^-  {mal-type _mal}
         (reed (eval:q p))
+      ::  XX i thought it returned every elem, only actually need a reel
       =^  res  this  (spin args f `_mal`this)
-      [(some [%list res]) this]
+      [(some (snag (dec (lent res)) res)) this]
+    ::
+    ?:  =(prim "if")
+      =^  cond  args  (take args)
+      =^  tru   args  (take args)
+      ::=^  res   this  (reed (eval cond))
+      =/  res   -:(reed (eval cond))
+      ?.  ?=(?($nil $false) res)
+        =^  tr  this  (reed (eval tru))
+        [(some tr) this]
+      ?~  args
+        [(some %nil) this]
+      =^  fal  this  (reed (eval i.args))
+      [(some fal) this]
     ::
     ?:  =(prim "fn*")
       =^  param  args  (take args)
       ~|  param
-      ?>  ?=({$list *} param)
+      ?>  ?=(?({$list *} {$vect *}) param)
       =^  close  args  (take args)
+      =/  token  level.ctx
       :_  this
       %-  some
       :-  %fun
-        |=  arg/(list mal-type)
-        ^-  mal-type
-        =/  new-env  (new:env (some ctx) p.param arg)
-        ::(reed (eval:~(. mal new-env) close))
-        [%atom -0]
+        ^-  mal-lambda
+        ^?
+        |=  {args/(list mal-type) this/_mal}
+        ^-  {mal-type _mal}
+        ~&  [%dig-for token]
+        =/  ref  (dig:ctx.this token)
+        ::  XX  DIG
+        =/  new-env  (new:env (some ref) p.param args)
+        (reed (eval:~(. mal new-env) close))
+        ::[%atom -0]
 
     ::
     [~ this]
@@ -385,9 +595,11 @@
       {$list *}  =/  f
                    |=  {m/mal-type s/_mal}
                    ^-  {mal-type _mal}
-                     (reed (eval:s m))
-                 =/  res  (spin `(list mal-type)`p.ast f `_mal`this)
-                 [[%list -.res] this]
+                     =/  e  (eval:s m)
+                     ~|  [%eval-ast-list m e]
+                     (reed e)
+                 =^  res  this  (spin `(list mal-type)`p.ast f `_mal`this)
+                 [[%list res] this]
       ::
       *          [ast this]
     ==
@@ -407,10 +619,11 @@
     =/  spec  (special-apply s)
     ?^  -.spec
       =^  val  this  spec
+      ^-  (result {mal-type _this} eval-err)
       %+  rath
-        (rung %special-fail val)
-        ::`(result _this eval-err)`(rome this)
-        (rome this)
+        `(result mal-type eval-err)`(rung %special-fail val)
+        `(result _this eval-err)`(rome this)
+        ::(rome this)
     ::
     :: get new list
     =^  el/mal-type  this  (eval-ast `mal-type`s)
@@ -422,10 +635,15 @@
       [%err %eval-bad-func func]
     =/  fun/mal-lambda  p.func
     =/  param/(list mal-type)  t.p.el
-    (rome [(fun param) this])
+    =/  c/{(list mal-type) _mal}  [param this]
+    (rome (fun c))
   ::
   ++  print
     |=  s/mal-type
+    ^-  {tape _this}
+    (pr-str s %.y)
+  ++  pr-str
+    |=  {s/mal-type readable/?}
     ^-  {tape _this}
     :_  this
     ?-  s
@@ -443,11 +661,24 @@
                  %+  weld  ?:(-.o "" "-")
                  =/  p  +.o
                  ::  tfw your test fails because numbers are german-style 1.010
-                 (flop `tape`|-(?~(p "" (weld <(mod p 10)> $(p (div p 10))))))
+                 (flop `tape`|-((weld <(mod p 10)> ?~((div p 10) "" $(p (div p 10))))))
       ::
       {$symb *}  p.s
       ::
-      {$str *}   p.s
+      {$str *}   ?.  readable
+                   p.s
+                 :: this looks weird, because dojo escapes \'s when printing
+                 =/  build  ""
+                 |-
+                 ?~  p.s
+                   :(weld "\"" build "\"")
+                 ?:  =('"' i.p.s)
+                   $(build (weld build "\\\""), p.s t.p.s)
+                 ?:  =('\0a' i.p.s)
+                   $(build (weld build "\\n"), p.s t.p.s)
+                 ?:  =('\\' i.p.s)
+                   $(build (weld build "\\\\"), p.s t.p.s)
+                 $(build (weld build (trip i.p.s)), p.s t.p.s)
       ::
       {$fun *}  "###"
     ==
@@ -462,12 +693,15 @@
     (rome [prit this])
   ::
   ++  safe-rep
-    |=  c/vase
-    ^-  (unit vase)
+    |=  s/tape
+    ^-  (result {tape _this} ?(eval-err {$safe-fail (list tank)}))
     =/  safe
-      (mule |.((slap c (ream '(rep s)'))))
+      ::  runtime panic = $err $safe-fail
+      ::  runtime error = $err $eval-err
+      ::  fine = $ok ...
+      (mule |.((rep s)))
     ?:  ?=($| -.safe)
-      ~
-    (some `vase`p.safe)
+      [%err [%safe-fail +.safe]]
+    p.safe
   --
 --

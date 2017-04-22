@@ -51,29 +51,43 @@
 ::
 ++  reed
   |*  r/(result)
+  ?:  ?=({$ok *} r)
+    +.r
   ?:  ?=({$err *} r)
     ~|  %reed
     !!
-  +.r
+  ~|  %not-res-reed
+  !!
 ::
 ++  rail
   |*  r/(result)
+  ?:  ?=({$err *} r)
+    +.r
   ?:  ?=({$ok *} r)
     ~|  %rail
     !!
-  +.r
+  ~|  %not-res-rail
+  !!
 ::
 ++  riff
   |*  {r/(result) f/$-(* (result))}
+  ::^-  (result ?(_(reed r) _(reed $:f)) ?(_(rail r) _(rail $:f)))
   ?:  ?=({$ok *} r)
     (f p.r)
   r
 ::
 ++  rind                                                ::  argue
   |*  {a/(result) b/gate}
-  ?~  ?=({$ok *} a)
+  ^-  (result _(b) _(rail a))
+  ?:  ?=({$ok *} a)
     (rome (b (reed a)))
   a
+::
+++  rate                                                ::  choose
+  |*  {a/(result) b/(result)}
+  ?:  ?=({$err *} b)  a
+  ?:  ?=({$err *} a)  b
+  ?.(=(p.a p.b) ~|('rate' !!) a)
 ::
 ++  rung                                                ::  adapt unit
   |*  {err/* u/(unit)}
@@ -81,6 +95,19 @@
   ?~  u
     [%err err]
   [%ok u.u]
+::
+++  ring                                                ::  adapt result
+  |*  a/(result)
+  ^-  (unit _(reed a))
+  ?:  ?=({$err *} a)
+    ~
+  (some (reed a))
+::
+++  rall
+  |*  {a/(result) b/*}
+  ?:  ?=({$err *} a)
+    b
+  a
 ::
 ++  rift                                                ::  curried lift
   |*  f/gate
@@ -113,6 +140,8 @@
     ~
   (some p.u.q.vex)
 ::
+++  ruler  _|=(nail *(like (result)))                               ::  parsing rule
+::
 ++  rex                                                 ::  parse else result
   |*  {else/result sef/rule}
   |=  tub/nail
@@ -144,7 +173,7 @@
   (romp |*({a/* b/*} a))
 ::
 ++  rug                                              ::  first then second
-  |*  {vex/edge sab/rule}
+  |*  {vex/_*(like (result)) sab/ruler}
   ?~  q.vex
     vex
   ?:  ?=({$err *} p.u.q.vex)
@@ -155,6 +184,7 @@
     [p=yur q=q.yit]
   ?:  ?=({$err *} p.u.q.yit)
     [p=yur q=q.yit]
+  ~!  p.u.q.yit
   [p=yur q=[~ u=[p=(rome [(reed p.u.q.vex) (reed p.u.q.yit)]) q=q.u.q.yit]]]
 ::
 ++  rose                                               ::  first or second
@@ -206,8 +236,9 @@
   ::  if err return the err
   ::  add new element to the top of rud
   ::  recurse and advance
-  |*  {rud/* raq/_roth fel/rule}
+  |*  {rud/* raq/_roth fel/ruler}
   |=  tub/nail
+  ~!  (wonk *fel)
   =/  res  (result (list _(reed (wonk *fel))) _(rail (wonk *fel)))
   ^-  (like res)
   =+  vex=(fel tub)
@@ -321,7 +352,7 @@
       ~&  str
       ?^  str
         ?:  =((lent str) 1)
-          [%ok ~]
+          (rome ~)
         [%err :(weld "parsing " t " expected more")]
       [%err :(weld "parsing " t " expected more")]
       (easy ~)

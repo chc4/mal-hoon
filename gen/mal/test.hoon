@@ -25,6 +25,7 @@ $?
   {defer/_.n option/_.n $~}
 ==
 
+=+  [help mal]
 
 :-  %noun
 =/  test/(list cord)
@@ -35,7 +36,7 @@ $?
   ==
 
 ^-  (list tape)
-=/  machine/(unit vase)  (some !>(new:mal:mal))
+=/  machine/(unit _mal:mal)  (some new:mal:mal)
 |-
 ?~  test
   ~
@@ -50,24 +51,23 @@ $?
   $(test t.test)
 =/  test/(list cord)  test
 ::  too lazy to build a proper door for this
-=+  [code=*(list cord) trout=*(unit vase) rest=*(list cord)]
+=+  [code=*(list cord) trout=*(unit tape) rest=*(list cord)]
 =+  |-
   ?~  test
     [code=code trout=trout rest=~ machine=machine]
   ?:  =((cut 3 [0 1] i.test) ';')
     [code=code trout=trout rest=[i.test t.test] machine=machine]
   ~|  running+(trip i.test)
-  =/  salmon  (safe-rep:mal:mal (slop !>(s=(trip i.test)) (need machine)))
+  =/  salmon/(result {tape _mal:mal} *)  (safe-rep:(need machine) (trip i.test))
   %=  $
     code  [i.test code]
-    trout  (bind salmon |=(v/vase (slot 2 v)))
+    trout  (ring (rind salmon |=({v/tape _mal:mal} v)))
     test  `(list cord)`t.test
-    machine   ^-  (unit vase)
-              %-  some
-              ^-  vase
-              %+  fall
-                %+  bind  salmon  |=(v/vase `vase`(slot 3 v))
-              (need machine)
+    machine   ^-  (unit _mal:mal)
+              %-  ring
+              %+  rall
+                ^-  (result _mal:mal *)  %+  rind  salmon  |=({t/tape v/_mal:mal} v)
+              `(result _mal:mal *)`(rung "empty machine" machine)
   ==
 =/  rest/(list cord)  rest
 ?~  rest
@@ -78,17 +78,18 @@ $?
   ~|  'next line wasnt result'^next
   !!
 ?:  =((cut 3 [0 2] next) '; ')
+  :: XX LOLJK THIS IS FOR ALL OUTPUT WHAT THE FUCK
+  ::  hoon literally can't do this, slog prints to console
   ::  compile-fail test
-  ?~  trout
-    ["[COMFAIL] PASS: {<code>}" $(test t.rest, machine machine)]
-  ["[COMFAIL] FAIL: {<code>}" $(test t.rest, machine machine)]
+  ::?~  trout
+  ::  ["[COMFAIL] PASS: {<code>}" $(test t.rest, machine machine)]
+  ::["[COMFAIL] FAIL: {<code>}" $(test t.rest, machine machine)]
+  ["[PRINTF] PASS: {<code>}" $(test t.rest, machine machine)]
 ::
-=/  p/tank  (sell `vase`(need trout))
-?>  ?=({$leaf *} p)
-=/  out  (crip (shave:mal p.p))
-=/  expect  (rsh 3 3 next)
 
 ?:  !=(~ trout)
+  =/  out  (crip (need trout))
+  =/  expect  (rsh 3 3 next)
  ?:  =(expect out)
     ["[RUNTIME] PASS: {<code>}" $(test t.rest, machine machine)]
   ["[RUNTIME] FAIL: {<code>}, EXPECTED {<`crip`expect>} GOT {<out>}" $(test t.rest, machine machine)]
