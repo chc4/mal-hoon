@@ -6,6 +6,40 @@
 =+  [help . ^mal]
 ::
 |%
+++  parse-res
+    (result mal-type tape)
+::
+++  mal-type
+$?
+  $nil
+  $true
+  $false
+$%
+  {$list p/(list mal-type)}
+  {$vect p/(list mal-type)}
+  {$atom p/@s}
+  {$symb p/tape}
+  {$str p/tape}
+  {$fun p/mal-lambda}
+==
+==
+::
+++  eval-err
+    $@
+      $?
+      $empty-call
+      $special-fail
+      ==
+    $%
+      {$eval-bad-func mal-type}
+    ==
+++  table
+  (map tape mal-type)
+::
+++  mal-lambda
+  ::$-({(list mal-type) _mal} {mal-type _mal})
+  _^?(|=({(list mal-type) _mal} *{mal-type _mal}))
+::
 ++  parser
   |%
   ++  spaces
@@ -108,10 +142,11 @@
   ++  read-str
     |=  s/tape
     ^-  parse-res
-    %-  need
-    %+  trust  s
-    %+  cook  (hint %read-str parse-res)
-    read-form
+    %+  fall
+      %+  trust  s
+      %+  cook  (hint %read-str parse-res)
+      read-form
+    [%ok %nil]  ::  XX what are you supposed to return for ";; comm"?
   ::
   ++  read-list
     %+  cook  (rift |=(p/(list mal-type) [%list p]))
@@ -261,6 +296,16 @@
       ~|  [%bedrock lvl]
       ~
     (dig:(need outer) lvl)
+  ::
+  ++  bury
+      |=  {lvl/@ env/_env}
+      ^-  _env
+      ~&  [%level lvl level.env]
+      ?:  (gth lvl level)
+        this(children (turn children |=(a/_env (bury:a lvl env))))
+      ?:  =(lvl level)
+        env
+      this(outer (some (bury:(need outer.this) lvl env)))
   --
 ::
 ++  ns
@@ -416,6 +461,65 @@
         %true
       %false
     ::
+    :-  "read-string"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      ~|  %need-str
+      =^  str  args  (take args)
+      ?>  ?=({$str *} str)
+      (read:this p.str)
+    ::
+    :-  "slurp"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      ~|  %need-str
+      =^  str  args  (take args)
+      ?>  ?=({$str *} str)
+      =/  urs  %+  cook
+             |=(a/tape (rap 3 ^-((list @) a)))
+           (star ;~(pose nud alf hep dot sig cab))
+      =/  stab  =+  fel=;~(pfix fas (more fas urs))
+                |=(zep/@t `path`(rash zep fel))
+      =/  cont
+        .^((list cord) %cx (tope [our.this %home %da now.this] (flop (stab (crip p.str)))))
+      [[%str (trip `@t`(role cont))] this]
+    ::
+    :-  "eval"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      ~|  %need-str
+      =^  ast  args  (take args)
+      ::  mal's scoping is fucking stupid, i'm sorry.
+      ::  (do ((fn* () (def! a 1))) a) -> nil
+      ::  (do ((fn* () (eval '(def! a 1)))) a) -> 1
+      ::  please, explain to me why the fuck this is supposed to work
+
+      ::  we have to let eval modify the top-level env? i think?
+      =/  top  (need (dig:ctx.this 0))
+      =/  res  (reed (eval:~(. this abet:this(ctx top)) ast))  :: this is going to fuck up my bookkeeping
+      =.  this  this(ctx (bury:ctx.this 0 ctx.+.res), id +(id.+.res))
+      [-.res this]  ::  do i need to increment?
+    ::
+    :-  "str"
+      :-  %fun
+      ^?
+      |=  {args/(list mal-type) this/_mal}
+      ^-  {mal-type _this}
+      =/  build  ""
+      |-
+      ?~  args
+        [[%str build] this]
+      ?.  ?=({$str *} i.args)
+        ~|  %str-not-str
+        !!
+      $(build (weld build p.i.args), args t.args)
+    ::
     :-  "bound"
       :-  %fun
       ^?
@@ -444,48 +548,18 @@
       close
     close
 ::
-++  parse-res
-    (result mal-type tape)
-::
-++  mal-type
-$?
-  $nil
-  $true
-  $false
-$%
-  {$list p/(list mal-type)}
-  {$vect p/(list mal-type)}
-  {$atom p/@s}
-  {$symb p/tape}
-  {$str p/tape}
-  {$fun p/mal-lambda}
-==
-==
-::
-++  eval-err
-    $@
-      $?
-      $empty-call
-      $special-fail
-      ==
-    $%
-      {$eval-bad-func mal-type}
-    ==
-++  table
-  (map tape mal-type)
-::
-++  mal-lambda
-  ::$-({(list mal-type) _mal} {mal-type _mal})
-  _^?(|=({(list mal-type) _mal} *{mal-type _mal}))
-::
 ++  mal
-  |_  {id/@ ctx/_env}                                   ::  unique id for envs
+  |_  {id/@ ctx/_env our/@p now/@da}                    ::  unique id for envs and atoms
+  ::  (aka poor man's io monad)
   ++  abet  +<
   ::
   ++  this  .                                           ::  entire core
   ::
   ++  new
-    ~(. mal 0 make-env)
+    |=  {our/@p now/@da}
+    =/  machine  ~(. mal 0 make-env our now)
+    =/  r  (rep:machine "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
+    +:(reed r)
   ::
   ++  read
     |=  s/tape
@@ -507,6 +581,7 @@ $%
     =/  prim  p.sym
     ::
     ?:  =(prim "def!")
+      ::  XX if overwriting a function, clear its env from the children table
       =^  bind  args  (take args)
       =^  code  args  (take args)
       =^  res/mal-type  this  (reed (eval `mal-type`code))
@@ -551,6 +626,7 @@ $%
         (reed (eval:q p))
       ::  XX i thought it returned every elem, only actually need a reel
       =^  res  this  (spin args f `_mal`this)
+      =+  (rep:this "(prn (bound) )")
       [(some (snag (dec (lent res)) res)) this]
     ::
     ?:  =(prim "if")
@@ -579,20 +655,30 @@ $%
         ^?
         |=  {args/(list mal-type) this/_mal}
         ^-  {mal-type _mal}
-        ~&  [%dig-for token %from level.ctx.this]
-        ~&  [%lamb-call args]
+        ::~&  [%dig-for token %from level.ctx.this]
+        ::~&  [%lamb-call args]
         =/  ref  |-  ~|  %dig-for  (need (dig:ctx.this token))
         ::  XX  DIG
         =/  new-env  (new:env +(id.this) (some ref) p.param args)
         =.  id.this  +(id.this)
-        ::[-:(reed (eval:~(. mal new-env) close)) this(children.ctx ~[new-env children.ctx.this])]
-        ::=.  children.ctx.this  `(list _env)`(limo ~[new-env children.ctx.this])
         =/  born  `(list _env)`(weld (limo ~[`_env`new-env]) children.ctx.this)
-        =+  [val stat]=(reed (eval:~(. mal id.this new-env) close))
+        =+  [val stat]=(reed (eval:~(. mal abet:this(ctx new-env)) close))
         :-
           ::  XX  take the new ID?
           val
-          this(children.ctx.this born, id id.stat)
+          ::  this works, but is fucky:
+          ::  if the closure modifies anything, we need to update that env
+          ::  this feels like it shouldn't work...
+          ::=/  nu  this(ctx (bury:ctx.this token (need (dig:ctx.stat token))))
+          =/  nu  this(ctx (need (dig:ctx.stat level.ctx.this)))
+          nu(children.ctx.this born, id id.stat)
+    ::
+    ?:  =(prim "quote")
+      ?~  args
+        [(some %nil) this]
+      ?:  =((lent args) 1)
+        [(some i.args) this]
+      [(some [%list args]) this]
     ::
     [~ this]
   ::
@@ -616,8 +702,6 @@ $%
       ::
       *          [ast this]
     ==
-  ::
-
   ::
   ++  eval
     |=  s/mal-type
@@ -712,6 +796,7 @@ $%
       ::  runtime panic = $err $safe-fail
       ::  runtime error = $err $eval-err
       ::  fine = $ok ...
+      ::  mule shadoes the sky! use ++mock with |=({a/* b/*} ``.^(* b)) for praying
       (mule |.((rep s)))
     ?:  ?=($| -.safe)
       [%err [%safe-fail +.safe]]

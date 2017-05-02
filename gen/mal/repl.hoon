@@ -3,10 +3,14 @@
 =+    [. sole mal]
 
 :-  %ask
-|=  *
+|=  $:
+  {now/@da eny/@uvJ bek/beak}
+  $~
+  $~
+==
 ^-  (sole-result (cask tang))
 
-=/  machine  new:mal:mal
+=/  machine  (new:mal:mal -.bek now)
 |-
 %+  sole-lo  [%.y %mal-repl "user> "]
 %+  sole-go  (most (easy ~) qit)
