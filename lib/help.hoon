@@ -41,13 +41,33 @@
   =+  [p q]=(spin a b c)
   p
 ::
-++  state
-  |*  m/mold
-  m
-::
-++  with
-  |*  {m/state f/_|=(* [p=** q=*state])}
-  (f m)
+++  ioref  ::  no PhantomData<T>, so hack it with $@
+  |*  t/mold
+  $@  i/@  {$phantom t}
+++  io
+  |*  t/mold
+  ^?
+  |_  {refs/(map (ioref t) t) id/@}
+  +-  abet  +<
+  +-  this  .
+  +-  new-ioref
+    |=  val/t
+    ^-  {(ioref t) _this}
+    =/  i   id
+    =.  refs  (~(put by refs) i val)
+    [i this(id +(id))]
+  +-  read-ioref
+    |=  token/(ioref t)
+    (~(get by refs) token)
+  ::
+  +-  write-ioref
+    |*  {token/(ioref t) val/*}
+    ?.  (~(has by refs) token)
+      ~|  'bad token'
+      !!
+    =.  refs  (~(put by refs) token val)
+    this
+  --
 ::
 ++  reed
   |*  r/(result)

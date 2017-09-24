@@ -36,7 +36,7 @@ $?
   ==
 
 ^-  (list tape)
-=/  machine/(unit _mal:mal)  (some new:mal:mal)
+=/  machine/(unit _mal:mal)  (some (new:mal:mal -.bek now))
 |-
 ?~  test
   ~
@@ -60,7 +60,7 @@ $?
   ~|  running+(trip i.test)
   =/  salmon/(result {tape _mal:mal} *)  (safe-rep:(need machine) (trip i.test))
   %=  $
-    code  [i.test code]
+    code  (welp code ~[i.test])
     trout  (ring (rind salmon |=({v/tape _mal:mal} v)))
     test  `(list cord)`t.test
     machine   ^-  (unit _mal:mal)

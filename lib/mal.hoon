@@ -1,7 +1,7 @@
 /-    mal
 /+    help
 
-!:
+::  !:
 ::  this is really weird and i don't get why it's not just =+  mal  again
 =+  [help . ^mal]
 ::
@@ -230,17 +230,17 @@ $%
     !!
   [i.arg t.arg]
 ::
+:: i wrote an io monad for all this, but i lost it somewhere...
+:: i re-wrote it and it worked pretty much first try, i'm basically a god
 ++  env
-  ::  we need a level so that functions can refer to env without mutable ref
-  ::  and we need all the envs that have to be kept alive for nested closures
-  |_  {level/@ children/(list _env) outer/(unit _env) data/table}
+  |_  {level/(ioref _env) children/(list (ioref _env)) outer/(unit (ioref _env)) data/table}
   ::
   ++  abet  +<       ::  sample
   ::
   ++  this  ..abet   ::  core
   ::
   ++  new
-    |=  {lvl/@ outer/(unit _env) binds/(list mal-type) exprs/(list mal-type)}
+    |=  {lvl/(ioref _env) outer/(unit (ioref _env)) binds/(list mal-type) exprs/(list mal-type)}
     ^-  _env
     =/  blank  ~(. env `_abet`[lvl ~ outer *table])
     |-
@@ -254,22 +254,24 @@ $%
   ++  set
     |=  {key/tape value/mal-type}
     ^-  _this
+    ~|  [%set-env in+level key+key]
     this(data (~(put by data) [b=key c=value]))
   ::
   ++  find
-    |=  key/tape
+    |=  {envs/_(io _env) key/tape}
     ^-  (unit table)
+    ~|  [%find-env in+level find+key]
     =/  res  (~(has by data) key)
     ?:  res
       (some data)
     ?~  =(outer ~)
       ~
-    (find:(need outer) key)
+    (find:(need (read-ioref:envs (need outer))) envs key)
   ::
   ++  get
-    |=  key/tape
+    |=  {envs/_(io _env) key/tape}
     ^-  (unit mal-type)
-    =/  e  (find key)
+    =/  e  (find envs key)
     ?~  e
       ~
     =/  val  (~(get by (need e)) key)
@@ -278,42 +280,13 @@ $%
       ~
     (some (need val))
   ::
-  ++  dig
-    |=  lvl/@
-    ~+
-    ^-  (unit _env)
-    ?:  (gth lvl level)
-      |-
-      ?~  children
-        ~
-      =/  rock  (dig:i.children lvl)
-      ?~  rock
-        $(children t.children)
-      rock
-    ?:  =(lvl level)
-      (some this)
-    ?~  outer
-      ~|  [%bedrock lvl]
-      ~
-    (dig:(need outer) lvl)
-  ::
-  ++  bury
-      |=  {lvl/@ env/_env}
-      ^-  _env
-      ~&  [%level lvl level.env]
-      ?:  (gth lvl level)
-        this(children (turn children |=(a/_env (bury:a lvl env))))
-      ?:  =(lvl level)
-        env
-      this(outer (some (bury:(need outer.this) lvl env)))
+
   --
 ::
 ++  ns
   %-  my
   :~
-    :-  "+"
-      :-  %fun
-      ^?
+    :-  "+"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  a  args  (get-atom args)
@@ -321,9 +294,7 @@ $%
       :_  this
       [%atom (sum:si a b)]
     ::
-    :-  "-"
-      :-  %fun
-      ^?
+    :-  "-"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  a  args  (get-atom args)
@@ -331,9 +302,7 @@ $%
       :_  this
       [%atom (dif:si a b)]
     ::
-    :-  "*"
-      :-  %fun
-      ^?
+    :-  "*"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  a  args  (get-atom args)
@@ -341,9 +310,7 @@ $%
       :_  this
       [%atom (pro:si a b)]
     ::
-    :-  "/"
-      :-  %fun
-      ^?
+    :-  "/"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  a  args  (get-atom args)
@@ -351,9 +318,7 @@ $%
       :_  this
       [%atom (fra:si a b)]
     ::
-    :-  "prn"
-      :-  %fun
-      ^?
+    :-  "prn"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       =^  f  args  (take args)
       =/  str  -:(pr-str:mal f %.y)
@@ -362,26 +327,20 @@ $%
       :_  this
       %nil
     ::
-    :-  "list"
-      :-  %fun
-      ^?
+    :-  "list"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       :_  this
       [%list args]
     ::
-    :-  "list?"
-      :-  %fun
-      ^?
+    :-  "list?"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  f  args  (take args)
       :_  this
       ?:  ?=({$list *} f)  %true  %false
     ::
-    :-  "empty?"
-      :-  %fun
-      ^?
+    :-  "empty?"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  f  args  (take args)
@@ -390,9 +349,7 @@ $%
         ?:  =(~ p.f)  %true  %false
       %false
     ::
-    :-  "count"
-      :-  %fun
-      ^?
+    :-  "count"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  f  args  (take args)
@@ -401,9 +358,7 @@ $%
         [%atom (sun:si (lent p.f))]
       [%atom --0]
     ::
-    :-  "="
-      :-  %fun
-      ^?
+    :-  "="  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  one  args  (take args)
@@ -413,9 +368,7 @@ $%
         %true
       %false
     ::
-    :-  "<"
-      :-  %fun
-      ^?
+    :-  "<"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  one  args  (get-atom args)
@@ -425,9 +378,7 @@ $%
         %true
       %false
     ::
-    :-  "<="
-      :-  %fun
-      ^?
+    :-  "<="  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  one  args  (get-atom args)
@@ -437,9 +388,7 @@ $%
         %true
       %false
     ::
-    :-  ">"
-      :-  %fun
-      ^?
+    :-  ">"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  one  args  (get-atom args)
@@ -449,9 +398,7 @@ $%
         %true
       %false
     ::
-    :-  ">="
-      :-  %fun
-      ^?
+    :-  ">="  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =^  one  args  (get-atom args)
@@ -461,9 +408,7 @@ $%
         %true
       %false
     ::
-    :-  "read-string"
-      :-  %fun
-      ^?
+    :-  "read-string"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       ~|  %need-str
@@ -471,9 +416,7 @@ $%
       ?>  ?=({$str *} str)
       (read:this p.str)
     ::
-    :-  "slurp"
-      :-  %fun
-      ^?
+    :-  "slurp"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       ~|  %need-str
@@ -488,9 +431,7 @@ $%
         .^((list cord) %cx (tope [our.this %home %da now.this] (flop (stab (crip p.str)))))
       [[%str (trip `@t`(role cont))] this]
     ::
-    :-  "eval"
-      :-  %fun
-      ^?
+    :-  "eval"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       ~|  %need-str
@@ -501,14 +442,14 @@ $%
       ::  please, explain to me why the fuck this is supposed to work
 
       ::  we have to let eval modify the top-level env? i think?
-      =/  top  (need (dig:ctx.this 0))
-      =/  res  (reed (eval:~(. this abet:this(ctx top)) ast))  :: this is going to fuck up my bookkeeping
-      =.  this  this(ctx (bury:ctx.this 0 ctx.+.res), id +(id.+.res))
-      [-.res this]  ::  do i need to increment?
+      ::  XX creates an ioref of 0, assumes the top-level is placed first!
+      ::  =/  top  (need (read-ioref:envs.this 0))
+      =^  res  this  (reed (eval:this(ctx 0) ast))  :: this is going to fuck up my bookkeeping
+      ::  i don't think i need to bury anything, since it will write through ioref?
+      ::  =.  this  this(ctx (bury:ctx.this 0 ctx.+.res), id +(id.+.res))
+      [res this]  ::  do i need to increment?
     ::
-    :-  "str"
-      :-  %fun
-      ^?
+    :-  "str"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       =/  build  ""
@@ -520,22 +461,21 @@ $%
         !!
       $(build (weld build p.i.args), args t.args)
     ::
-    :-  "bound"
-      :-  %fun
-      ^?
+    :-  "bound"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       =/  lvl  ?~  args  0  (abs:si -:(get-atom args))
       ^-  {mal-type _this}
       :_  this
-      [%list (turn (~(tap in ~(key by data:(need (dig:ctx.this lvl))))) |=(s/tape [%str s]))]
+      [%list (turn (~(tap in ~(key by data:(need (read-ioref:envs.this lvl))))) |=(s/tape [%str s]))]
     ::
-     :-  "level"
-      :-  %fun
-      ^?
+    :-  "level"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
       ^-  {mal-type _this}
       :_  this
-      [%atom (sun:si level.ctx.this)]
+      ?^  ctx.this
+        ~|  'invalid ctx level'
+        !!
+      [%atom (sun:si `@`ctx.this)]
   ==
 ::
 ++  make-env
@@ -549,15 +489,25 @@ $%
     close
 ::
 ++  mal
-  |_  {id/@ ctx/_env our/@p now/@da}                    ::  unique id for envs and atoms
+  |_  {envs/_(io _env) atoms/_(io mal-type) ctx/(ioref _env) our/@p now/@da}                    ::  unique id for envs and atoms, increment on use
   ::  (aka poor man's io monad)
   ++  abet  +<
   ::
   ++  this  .                                           ::  entire core
   ::
+  ++  set
+    |=  {token/(ioref _env) bind/tape val/mal-type}
+    ^-  _this
+    =/  fenv  (need (read-ioref:envs token))
+    =.  fenv  (set:fenv bind val)
+    =.  envs.this  (write-ioref:envs token fenv)
+    this
+  ::
   ++  new
     |=  {our/@p now/@da}
-    =/  machine  ~(. mal 0 make-env our now)
+    =/  envs/_(io _env)  (io _env)
+    =^  top/(ioref _env)  envs  (new-ioref:envs make-env)
+    =/  machine/_mal  ~(. mal envs (io mal-type) top our now)
     =/  r  (rep:machine "(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))")
     +:(reed r)
   ::
@@ -591,29 +541,33 @@ $%
       =/  key  ?>  ?=({$symb *} bind)
                p.bind
       ::=.  ctx  (set:ctx `tape`key `mal-type`res)
-      ~&  [%def-in level.ctx key]
-      [(some res) this(ctx `_env`(set:ctx key res))]
+      ~&  [%def-in ctx key]
+      ::=/  con  (need (read-ioref:envs ctx))
+      [(some res) (set ctx key res)]
     ::
     ?:  =(prim "let*")
       =^  bindings  args  (take args)
       ?>  ?=({$list *} bindings)
       =/  bindings/(list mal-type)  p.bindings
       =/  old-env  ctx
-      =.  ctx  (new:env +(id.this) (some ctx) ~ ~)
-      =.  id.this  +(id.this)
-      =.  ctx
+      ::
+      =/  new-env  (new:env level=0 (some ctx) ~ ~)
+      =^  token  envs  (new-ioref:envs new-env)
+      =.  level.new-env  token
+      =.  envs.this  (write-ioref:envs token new-env)
+      ::
       |-
-        ?:  =((lent bindings) 0)
-          ctx
+      ?.  =((lent bindings) 0)
         =^  name/mal-type  bindings  (take bindings)
         ?>  ?=({$symb *} name)
         =^  entr  bindings  (take bindings)
         =^  bind  this  (reed (eval entr))
         ?:  =(%nil bind)
           ~&  %bad-let
-          $(bindings bindings)
+          $(this this, bindings bindings)
         ::~&  [%let-bind p.name bind]
-        $(ctx (set:ctx p.name bind), bindings bindings)
+        =.  this  (set ctx p.name bind)
+        $(this this, bindings bindings)
       =^  close  args  (take args)
       =^  res    this  (reed (eval close))
       [(some res) this(ctx old-env)]
@@ -647,7 +601,7 @@ $%
       ~|  param
       ?>  ?=(?({$list *} {$vect *}) param)
       =^  close  args  (take args)
-      =/  token  level.ctx
+      =/  token  ctx
       :_  this
       %-  some
       :-  %fun
@@ -655,23 +609,20 @@ $%
         ^?
         |=  {args/(list mal-type) this/_mal}
         ^-  {mal-type _mal}
-        ::~&  [%dig-for token %from level.ctx.this]
+        ~&  [%dig-for token %from ctx.this]
         ::~&  [%lamb-call args]
-        =/  ref  |-  ~|  %dig-for  (need (dig:ctx.this token))
         ::  XX  DIG
-        =/  new-env  (new:env +(id.this) (some ref) p.param args)
-        =.  id.this  +(id.this)
-        =/  born  `(list _env)`(weld (limo ~[`_env`new-env]) children.ctx.this)
-        =+  [val stat]=(reed (eval:~(. mal abet:this(ctx new-env)) close))
-        :-
-          ::  XX  take the new ID?
-          val
-          ::  this works, but is fucky:
-          ::  if the closure modifies anything, we need to update that env
-          ::  this feels like it shouldn't work...
-          ::=/  nu  this(ctx (bury:ctx.this token (need (dig:ctx.stat token))))
-          =/  nu  this(ctx (need (dig:ctx.stat level.ctx.this)))
-          nu(children.ctx.this born, id id.stat)
+        =/  cont  ctx.this
+        =/  new-env  (new:env level=0 (some token) p.param args)
+        =^  level  envs.this  (new-ioref:envs.this new-env)
+        =.  new-env  new-env(level level)
+        =.  envs.this  (write-ioref:envs.this level new-env)
+        ::
+        ::=/  born  `(list _env)`(weld (limo ~[`_env`new-env]) children.ctx.this)
+        ::=+  [val stat]=(reed (eval:~(. mal abet:this(ctx new-env)) close))
+        ~&  [%run-in ctx+level abet+abet.new-env]
+        =^  res  this  (reed (eval:this(ctx level) close))
+        [res this(ctx cont)]
     ::
     ?:  =(prim "quote")
       ?~  args
@@ -686,7 +637,11 @@ $%
     |=  ast/mal-type
     ^-  {mal-type _this}
     ?-  ast
-      {$symb *}  =/  key  (get:ctx p.ast)
+      {$symb *}  =/  key
+                   |-
+                   ~|  [%eval-in ctx+ctx key+p.ast]
+                   ~|  [%alive-envs (turn (~(tap by refs.abet.envs)) |=({key/(ioref _env) val/_env} key))]
+                   (get:(need (read-ioref:envs ctx)) envs p.ast)
                  ?~  key
                    [%nil this]
                  [(need key) this]
@@ -768,7 +723,7 @@ $%
                  =/  build  ""
                  |-
                  ?~  p.s
-                   :(weld "\"" build "\"")
+                   :(weld "'" build "'")
                  ?:  =('"' i.p.s)
                    $(build (weld build "\\\""), p.s t.p.s)
                  ?:  =('\0a' i.p.s)
