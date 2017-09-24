@@ -1,0 +1,2 @@
+urbit has a different file structure than unix, and i didn't implement splitting paths and traversing '..' and other boring stuff
+all the atom tests pass, at least.
