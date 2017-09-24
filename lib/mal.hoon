@@ -279,8 +279,6 @@ $%
       ~|  %got-no-key
       ~
     (some (need val))
-  ::
-
   --
 ::
 ++  ns
@@ -443,11 +441,8 @@ $%
 
       ::  we have to let eval modify the top-level env? i think?
       ::  XX creates an ioref of 0, assumes the top-level is placed first!
-      ::  =/  top  (need (read-ioref:envs.this 0))
-      =^  res  this  (reed (eval:this(ctx 0) ast))  :: this is going to fuck up my bookkeeping
-      ::  i don't think i need to bury anything, since it will write through ioref?
-      ::  =.  this  this(ctx (bury:ctx.this 0 ctx.+.res), id +(id.+.res))
-      [res this]  ::  do i need to increment?
+      =^  res  this  (reed (eval:this(ctx 0) ast))
+      [res this]
     ::
     :-  "str"  :-  %fun  ^?
       |=  {args/(list mal-type) this/_mal}
@@ -489,7 +484,7 @@ $%
     close
 ::
 ++  mal
-  |_  {envs/_(io _env) atoms/_(io mal-type) ctx/(ioref _env) our/@p now/@da}                    ::  unique id for envs and atoms, increment on use
+  |_  {envs/_(io _env) atoms/_(io mal-type) ctx/(ioref _env) our/@p now/@da}
   ::  (aka poor man's io monad)
   ++  abet  +<
   ::
@@ -531,7 +526,7 @@ $%
     =/  prim  p.sym
     ::
     ?:  =(prim "def!")
-      ::  XX if overwriting a function, clear its env from the children table
+      ::  XX if overwriting a function, clear its env from the envs table
       =^  bind  args  (take args)
       =^  code  args  (take args)
       =^  res/mal-type  this  (reed (eval `mal-type`code))
@@ -540,9 +535,7 @@ $%
         [(some %nil) this]
       =/  key  ?>  ?=({$symb *} bind)
                p.bind
-      ::=.  ctx  (set:ctx `tape`key `mal-type`res)
-      ~&  [%def-in ctx key]
-      ::=/  con  (need (read-ioref:envs ctx))
+      ::  ~&  [%def-in ctx key]
       [(some res) (set ctx key res)]
     ::
     ?:  =(prim "let*")
@@ -609,18 +602,16 @@ $%
         ^?
         |=  {args/(list mal-type) this/_mal}
         ^-  {mal-type _mal}
-        ~&  [%dig-for token %from ctx.this]
+        ::~&  [%dig-for token %from ctx.this]
         ::~&  [%lamb-call args]
-        ::  XX  DIG
+        :: XX add a GC that scans references? this create envs and never destroy
         =/  cont  ctx.this
         =/  new-env  (new:env level=0 (some token) p.param args)
         =^  level  envs.this  (new-ioref:envs.this new-env)
         =.  new-env  new-env(level level)
         =.  envs.this  (write-ioref:envs.this level new-env)
         ::
-        ::=/  born  `(list _env)`(weld (limo ~[`_env`new-env]) children.ctx.this)
-        ::=+  [val stat]=(reed (eval:~(. mal abet:this(ctx new-env)) close))
-        ~&  [%run-in ctx+level abet+abet.new-env]
+        ::~&  [%run-in ctx+level abet+abet.new-env]
         =^  res  this  (reed (eval:this(ctx level) close))
         [res this(ctx cont)]
     ::
@@ -719,7 +710,6 @@ $%
       ::
       {$str *}   ?.  readable
                    p.s
-                 :: this looks weird, because dojo escapes \'s when printing
                  =/  build  ""
                  |-
                  ?~  p.s
