@@ -692,26 +692,24 @@ $%
         "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
         "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))"
       ==
-    |-
-    ?~  preload
-      machine
-    $(machine +:(reed (rep:machine i.preload)), preload t.preload)
+    machine
+    ::|-
+    ::?~  preload
+    ::  machine
+    ::$(machine +:(reed (rep:machine i.preload)), preload t.preload)
   ::
   ::  because all of these result into a [(some res] this], not actually TCO
   ::  which is probably a bad thing?
   ::  turn this into a (map tape $-((list mal-type) mal-res) and become in ++eval
   ::
-  ++  special-apply
-    |=  s/mal-type
-    ^-  {(unit mal-type) _this}
-    ?.  ?=({$list *} s)
-      [~ this]
-    ?~  p.s
-      [~ this]
+  +-  special-apply
+    |*  {s/mal-type f/_|.(*mal-res)}
+    ^-  mal-res
+    ?>  ?=({$list *} s)
+    ?<  ?=($~ p.s)
     =/  args  `(list mal-type)`p.s
     =^  sym  args  (take `(list mal-type)`args)
-    ?.  ?=({$symb *} sym)
-      [~ this]
+    ?>  ?=({$symb *} sym)
     =/  prim  p.sym
     ::
     ?:  =(prim "try*")
@@ -729,7 +727,7 @@ $%
       ?:  ?=($| -.safe)
         ::  actually crashed
         ::  XX why the fuck am i still using reed for all these special forms smh
-        =^  res  this  %-  reed  %-  eval:this
+        %-  eval:this
           ^-  mal-type
           :*
             %list
@@ -739,18 +737,14 @@ $%
               hand
             ==
           ==
-        [(some res) this]
       ?:  ?=({$err *} p.safe)
         ?:  ?=({$throw *} p.p.safe)
           :: this is cheating
-          =^  res  this  %-  reed  (eval:this [%list ~[[%symb "let*"] [%list bind p.p.p.safe ~] hand]])
-          [(some res) this]
+          (eval:this [%list ~[[%symb "let*"] [%list bind p.p.p.safe ~] hand]])
         ::  usually looks terrible
-        =^  res  this  %-  reed  (eval:this [%list ~[[%symb "let*"] [%list bind [%str <p.p.safe>] ~] hand]])
-        [(some res) this]
+        (eval:this [%list ~[[%symb "let*"] [%list bind [%str <p.p.safe>] ~] hand]])
       ::  actually good value
-      =^  res  this  `{mal-type _mal}`(reem p.safe)
-      [(some res) this]
+      p.safe
     ::
     ?:  =(prim "def!")
       ::  XX if overwriting a function, clear its env from the envs table
@@ -759,11 +753,13 @@ $%
       =^  res/mal-type  this  (reed (eval `mal-type`code))
       ?:  =(%nil res)
         ~|  %bad-bind
-        [(some %nil) this]
+        %-  rome
+        [%nil this]
       =/  key  ?>  ?=({$symb *} bind)
                p.bind
       ::  ~&  [%def-in ctx key]
-      [(some res) (set ctx key res)]
+      %-  rome
+      [res (set ctx key res)]
     ::
     ?:  =(prim "defmacro!")
       ::  "This is very similar to the def! form, but before the evaluated value (mal function) is set in the environment, the is_macro attribute should be set to true."
@@ -773,7 +769,8 @@ $%
       =^  res/mal-type  this  (reed (eval `mal-type`code))
       ?:  =(%nil res)
         ~|  %bad-macro
-        [(some %nil) this]
+        %-  rome
+        [%nil this]
       ?.  ?=({$fun *} res)
         ~|  %macro-not-fun
         !!
@@ -781,7 +778,8 @@ $%
       =/  key  ?>  ?=({$symb *} bind)
                p.bind
       ::  ~&  [%def-in ctx key]
-      [(some res) (set ctx key res)]
+      %-  rome
+      [res (set ctx key res)]
     ::
     ?:  =(prim "let*")
       =^  bindings  args  (take args)
@@ -808,7 +806,8 @@ $%
         $(this this, bindings bindings)
       =^  close  args  (take args)
       =^  res    this  (reed (eval close))
-      [(some res) this(ctx old-env)]
+      %-  rome
+      [res this(ctx old-env)]
     ::
     ?:  =(prim "do")
       =/  args/(list mal-type)  t.p.s
@@ -819,7 +818,8 @@ $%
       ::  XX i thought it returned every elem, only actually need a reel
       =^  res  this  (spin args f `_mal`this)
       =+  (rep:this "(prn (bound) )")
-      [(some (snag (dec (lent res)) res)) this]
+      %-  rome
+      [(snag (dec (lent res)) res) this]
     ::
     ?:  =(prim "if")
       =^  cond  args  (take args)
@@ -827,12 +827,11 @@ $%
       ::=^  res   this  (reed (eval cond))
       =^  res  this  (reem (eval cond))
       ?.  ?=(?($nil $false) res)
-        =^  tr  this  (reed (eval tru))
-        [(some tr) this]
+        (eval tru)
       ?~  args
-        [(some %nil) this]
-      =^  fal  this  (reed (eval i.args))
-      [(some fal) this]
+        %-  rome
+        [%nil this]
+      (eval i.args)
     ::
     ?:  =(prim "fn*")
       =^  param  args  (take args)
@@ -840,8 +839,8 @@ $%
       ?>  ?=(?({$list *} {$vect *}) param)
       =^  close  args  (take args)
       =/  token  ctx
+      %-  rome
       :_  this
-      %-  some
       :-  %fun  :_  |
         ^-  mal-lambda
         ^?
@@ -862,11 +861,12 @@ $%
         (rome [res this(ctx cont)])
     ::
     ?:  =(prim "quote")
+      %-  rome
       ?~  args
-        [(some %nil) this]
+        [%nil this]
       ?:  =((lent args) 1)
-        [(some i.args) this]
-      [(some [%list args]) this]
+        [i.args this]
+      [[%list args] this]
     ::
     :: XX not TCO? is it?
     ?:  =(prim "quasiquote")
@@ -908,15 +908,14 @@ $%
         ::  ~&  [%qq-cons first ast]
         [%list ~[[%symb "cons"] $(ast first) $(ast ast)]]
       ::  ~&  [%qq-res qot]
-      =^  res  this  (reed (eval qot))
-      [(some res) this]
+      (eval qot)
     ::
     ?:  =(prim "macroexpand")
       =^  ast  args  (take args)
-      =^  res  this  (macroexpand ast (need (read-ioref:envs ctx)))
-      [(some res) this]
+      %-  rome
+      (macroexpand ast (need (read-ioref:envs ctx)))
     ::
-    [~ this]
+    (f)
   ::
   ++  eval-ast
     |=  ast/mal-type
@@ -957,16 +956,23 @@ $%
     =^  s  this  (macroexpand s (need (read-ioref:envs ctx)))
     ?.  ?=({$list *} s)
       (eval-ast s)
-    =/  spec  (special-apply s)
-    ?^  -.spec
-      =^  val  this  spec
-      ^-  (result {mal-type _this} eval-err)
-      %+  rath
-        `(result mal-type eval-err)`(rung %special-fail val)
-        `(result _this eval-err)`(rome this)
-        ::(rome this)
+
+    ::  continuation style so that special-apply can continue if not a form
+    ::    i could just put the remainder at the end of the case check, but it
+    ::    would be out of place
+    =-  ?:  ?&
+          !?=($~ p.s)
+
+          =/  args  `(list mal-type)`p.s
+          =^  sym  args  (take `(list mal-type)`args)
+          ?=({$symb *} sym)
+        ==
+        (special-apply s continue)
+      (continue)
     ::
     :: get new list
+    ^-  continue/_|.(*mal-res)
+    |.
     %+  riff  (eval-ast `mal-type`s)
     |=  {el/mal-type this/_mal}
     ?>  ?=({$list *} el)
