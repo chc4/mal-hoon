@@ -2,7 +2,6 @@
 /+    help
 
 ::  TODO:
-::    switch the special apply stuff to a map and into ++eval for TCO
 ::    add more helper funtions, make ++ns use them (remember get-atom?)
 ::      things like "try*" look *terrible*
 ::    switch all those fucking reeds to (riff a b) smh
@@ -692,15 +691,10 @@ $%
         "(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))"
         "(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))"
       ==
-    machine
-    ::|-
-    ::?~  preload
-    ::  machine
-    ::$(machine +:(reed (rep:machine i.preload)), preload t.preload)
-  ::
-  ::  because all of these result into a [(some res] this], not actually TCO
-  ::  which is probably a bad thing?
-  ::  turn this into a (map tape $-((list mal-type) mal-res) and become in ++eval
+    |-
+    ?~  preload
+      machine
+    $(machine +:(reed (rep:machine i.preload)), preload t.preload)
   ::
   +-  special-apply
     |*  {s/mal-type f/_|.(*mal-res)}
@@ -726,7 +720,6 @@ $%
       ::  this will lose writes to atoms inside the catch, which it might not expect
       ?:  ?=($| -.safe)
         ::  actually crashed
-        ::  XX why the fuck am i still using reed for all these special forms smh
         %-  eval:this
           ^-  mal-type
           :*
@@ -868,7 +861,6 @@ $%
         [i.args this]
       [[%list args] this]
     ::
-    :: XX not TCO? is it?
     ?:  =(prim "quasiquote")
       =/  qot
         =/  is-pair
